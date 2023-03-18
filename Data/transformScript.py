@@ -70,7 +70,7 @@ def read_csv_transform(f: str, export: str) -> pd.DataFrame:
     """
     data = pd.read_csv(f, na_values='n.a.')
     data.dropna(axis=1, inplace=True)
-    data.drop('Lun_Sky_Brt', axis=1, inplace=True)
+    #data.drop('Lun_Sky_Brt', axis=1, inplace=True)
     data.drop('R.A._(ICRF)', axis=1, inplace=True)
 
     data['/r'] = data['/r'].replace({'/T': 1, '/L': 0})
@@ -86,7 +86,7 @@ def read_csv_transform(f: str, export: str) -> pd.DataFrame:
     data['weekday'] = data['Date__(UT)__HR:MN'].dt.dayofweek
     data = data[data['weekday'] < 5]
 
-    work_hour_df = filter_by_time(data, 9, 17)
+    work_hour_df = data #FIX THIS
 
     cal = USFederalHolidayCalendar()
 
