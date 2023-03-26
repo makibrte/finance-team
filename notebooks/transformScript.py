@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from pandas.tseries.holiday import USFederalHolidayCalendar
+import pandas_market_calendars as mcal
 import os
 
 
@@ -63,6 +64,27 @@ def filter_by_time(df, start, end) -> pd.DataFrame:
     return df
 
 
+import datetime
+
+
+def filter_by_date(df, start, end) -> pd.DataFrame:
+    """
+    Filter the data by date
+    :param df: the dataframe
+    :param start: start date (string in format 'yyyy-mm-dd')
+    :param end: end date (string in format 'yyyy-mm-dd')
+    :return: the filtered dataframe
+    """
+    # Convert start and end to datetime.date objects
+    start_date = datetime.datetime.strptime(start, '%Y-%m-%d').date()
+    end_date = datetime.datetime.strptime(end, '%Y-%m-%d').date()
+
+    # Filter the dataframe
+    df.query('date >= @start_date and date <= @end_date', inplace=True)
+
+    return df
+
+
 def read_csv_transform(f: str, export: str) -> pd.DataFrame:
     """
     Read the csv file and transform it to the proper format for the model
@@ -83,29 +105,35 @@ def read_csv_transform(f: str, export: str) -> pd.DataFrame:
     data['day'] = data['Date__(UT)__HR:MN'].dt.day
     data['time'] = data['Date__(UT)__HR:MN'].dt.hour + data['Date__(UT)__HR:MN'].dt.minute / 60
     data['date'] = data['Date__(UT)__HR:MN'].dt.date
-    #data['date'] = pd.to_datetime(data['date'])
-
+    # data['date'] = pd.to_datetime(data['date'])
+    filter_by_date(data, '2020-06-27', '2023-03-10')
     data['weekday'] = data['Date__(UT)__HR:MN'].dt.dayofweek
     data = data[data['weekday'] < 5]
 
-    work_hour_df = data #FIX THIS
+    work_hour_df = data[(data['time'] >= 9.5) & (data['time'] <= 15.5)]
+    # filter so data goes by hour from 9:30 to 14:30
+    work_hour_df = work_hour_df[work_hour_df['time'] % 1 == 0.5]
 
-    cal = USFederalHolidayCalendar()
 
-    holidays = cal.holidays(start=work_hour_df['Date__(UT)__HR:MN'].min(), end=work_hour_df['Date__(UT)__HR:MN'].max())
+    #cal = USFederalHolidayCalendar()
+    cal = mcal.get_calendar('NYSE')
+    data['Date__(UT)__HR:MN'] = pd.to_datetime(data['Date__(UT)__HR:MN'], format='%d,%m,%Y %H:%M')
+
+    holidays = cal.schedule(start_date=work_hour_df['Date__(UT)__HR:MN'].min(), end_date=work_hour_df['Date__(UT)__HR:MN'].max())
     holidays = pd.to_datetime(holidays, format='%Y-%b-%d%H:%M')
 
     work_hour_df = work_hour_df[~pd.to_datetime(work_hour_df['date']).isin(holidays)]
-    
-    #work_hour_df.drop('Date__(UT)__HR:MN', axis = 1, inplace=True)
+
+    # work_hour_df.drop('Date__(UT)__HR:MN', axis = 1, inplace=True)
 
     return work_hour_df
+
 
 def main():
     read_file_and_export('../Data/planets.txt', 'data.csv')
     df = read_csv_transform('data.csv', 'data.csv')
-    df.to_csv('data.csv', index=False,)
+    df.to_csv('data.csv', index=False, )
+
 
 if __name__ == '__main__':
     main()
-
