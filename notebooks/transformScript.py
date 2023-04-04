@@ -117,12 +117,12 @@ def read_csv_transform(f: str, export: str) -> pd.DataFrame:
 
     #cal = USFederalHolidayCalendar()
     cal = mcal.get_calendar('NYSE')
-    data['Date__(UT)__HR:MN'] = pd.to_datetime(data['Date__(UT)__HR:MN'], format='%d,%m,%Y %H:%M')
+    #data['Date__(UT)__HR:MN'] = pd.to_datetime(data['Date__(UT)__HR:MN'], format='%d,%m,%Y %H:%M')
 
     holidays = cal.schedule(start_date=work_hour_df['Date__(UT)__HR:MN'].min(), end_date=work_hour_df['Date__(UT)__HR:MN'].max())
-    holidays = pd.to_datetime(holidays, format='%Y-%b-%d%H:%M')
+    holidays = pd.to_datetime(holidays.index, format='%Y-%b-%d%H:%M')
 
-    work_hour_df = work_hour_df[~pd.to_datetime(work_hour_df['date']).isin(holidays)]
+    work_hour_df = work_hour_df[pd.to_datetime(work_hour_df['date']).isin(holidays)]
 
     # work_hour_df.drop('Date__(UT)__HR:MN', axis = 1, inplace=True)
 
