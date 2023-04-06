@@ -8,11 +8,11 @@ from sklearn.preprocessing import StandardScaler
 def init_tensor(filename: str):
 
     df = pd.read_csv(filename, index_col=0)
-    tensor = Tensor(df)
-    tensor.to('cuda:0')
+    tensor = Tensor(df).to('cuda:0')
+    
 
 def main():
-    init_tensor('data.csv')
+    init_tensor('scaled.csv')
 
 
 if __name__ == '__main__':
