@@ -12,13 +12,14 @@ from torch.utils.data.sampler import Sampler
 from torchvision import datasets, transforms 
 from collections import deque
 from train import train, test
+from Model import QNet
 import random 
 class Agent:
     def __init__(self, cash):
         
         self.cash = torch.tensor(cash).to("cuda:0")
         self.init_balance = torch.tensor(cash).to("cuda:0")
-        self.holdings_value = torch.tensor(0).to("cuda:0")
+        self.holdings = torch.zeros(20,1).to("cuda:0")
         self.value = torch.tensor(cash).to("cuda:0")
         
         self.memory = deque(maxlen=46800)
@@ -26,40 +27,22 @@ class Agent:
         self.performance = torch.tensor(0).to("cuda:0")
         self.model = QNet(155,1000000,3).to("cuda:0")
         self.model.share_memory()
+        self.update_tensor = torch.tensor([[1, -1, 0] for _ in range(20)], dtype=torch.float32).to("cuda:0")
+
         
         self.epochs = torch.tensor(0)
 
     def getState(self, data):
-        agent_data = torch.tensor([self.cash, self.holdings_value, 
-            self.holdings_average, self.performance]).to("cuda:0")
-        state = data.clone().to("cuda:0")
-
-        state = torch.cat((state, agent_data),0)
+        
+        state = torch.cat((data, torch.tensor([self.balance])))
+        
+        
         return state
-
+    
     def getAction(self,data):
         
         self.epsilon = 100 - self.epochs
-        final_action = [[0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0],
-                        [0, 0, 0]]
+        
         
         if random.randint(0, 80) < self.epsilon:
             prediction_tensor = torch.randn(20, 3)
@@ -75,29 +58,24 @@ class Agent:
             final_action(1, max_indices.unsqueeze(1), 1)
         return final_action
     
-    def openPosition(self, data):
+    def updateValue(self, action, prices) -> None:
+        temp_holdings = self.holdings.clone()
+        temp_holdings = temp_holdings + torch.sum((action * self.update_tensor * 100), dim=1, keepdim=True)
         
-        if(self.cash >= data[1]* 5):
-            self.cash -= data[1] * 5
-            self.holdings_value = self.n_stocks * data[1] + data[1] * 5
-            self.n_stocks += 5
-            self.holdings_average = self.holdings_value / self.n_stocks
-            self.value = self.cash + self.holdings_value
-            return True
+        if torch.sum(temp_holdings < 0) > 0:
+            #TODO : Change so it has different recorded value to put into the csv file
+            pass
         else:
-            return False
-    def closePosition(self, data):
-        if(self.n_stocks >= 5):
-            self.cash += data[1] * 5
-            
-            self.holdings_value = self.n_stocks * data[1] - data[1] * 5
-            self.holdings_average = self.holdings_value / self.n_stocks
-            self.n_stocks -= 5
-            self.value = self.cash + self.holdings_value
-            return True
-        else:
-            return False
-    def calcPerformance(self):
-        self.performance = self.value/self.init_balance
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+            cash_change = torch.tensor(torch.sum(prices * torch.sum((action * self.update_tensor * 50), dim=1, keepdim=True)))
+            if cash_change >= self.cash:
+                self.holdings = self.holdings + torch.sum((action * self.update_tensor * 50), dim=1, keepdim=True)
+                self.cash = self.cash - cash_change
+        self.balance = torch.sum(self.holdings * prices) + self.cash
+        self.stepPerformance()
+    def stepPerformance(self):
+        self.performance = self.balance / self.init_balance - self.performance
+
+    def finalPerformance(self) -> torch.tensor():
+        return self.balance / self.init_balance
+    def remember(self, state, action, reward, next_state):
+        self.memory.append((action, state, reward, next_state))

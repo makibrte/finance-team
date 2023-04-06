@@ -31,27 +31,22 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
     for epoch in range(1, args.epochs + 1):
         for data in dataset:
             
-            state = agent.getState(data)
+            state = agent.getState(data[..., -20:])
             actions = agent.getAction(state)
-            for action in actions:
-                if(action.index(max(action)) == 0):
-                    agent.openPosition(data)
-                elif(action.index(max(action)) == 1):
-                    agent.closePosition(data)
-                else:
-                    agent.holdings_value = agent.n_stocks * data[1]
-                    agent.value = agent.cash + agent.holdings_value
+            agent.updateValue(actions, data[..., -20:])
             agent.calcPerformance()
             new_state = agent.getState(data)
-            agent.remember(state, action, 0, new_state, False)
-        perfromance = agent.performance
+            #TODO : Modify the reward function
+            reward = agent.stepPerformance()
+            agent.remember(state, actions, agent.performance, new_state)
+        perfromance = agent.finalPerformance()
         
         if(perfromance > record):
             record = perfromance
             agent.model.save()
-            agent.remember(state, action, perfromance + 1, new_state, True)
+            agent.remember(state, actions, perfromance, new_state)
         else:
-            agent.remember(state, action, perfromance, new_state, True)
+            agent.remember(state, actions, perfromance, new_state)
         #train_loader = torch.utils.data.DataLoader(agent.memory, **dataloader_kwargs)
         train_epoch(epoch, args, model, agent, device, agent.memory, optimizer)
         print(epoch)
@@ -99,3 +94,5 @@ def train_epoch(epoch, args, model, agent, device, data_loader, optimizer):
     loss = criterion(output.to(device), target.to(device))
     loss.backward()
     optimizer.step()
+def test_epoch(model):
+    model.eval()
