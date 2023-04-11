@@ -13,6 +13,8 @@ from torchvision import datasets, transforms
 from collections import deque
 from train import train, test
 import random
+from Model import QNet
+from Agent import Agent
 parser = argparse.ArgumentParser(description='IMG DQN hogwild')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                     help='input batch size for training (default: 64)')
@@ -63,7 +65,7 @@ if __name__ == '__main__':
     mp.set_start_method('spawn', force=True)
     
     model = QNet(15, 128,3, args.save).to(device)
-    agent = Agent(10000)
+    agent = Agent(10000, args)
     model.share_memory()
     processes = []
     for rank in range(args.num_processes):

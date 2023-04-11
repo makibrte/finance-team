@@ -29,11 +29,11 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     #Backtest loop
     for epoch in range(1, args.epochs + 1):
-        for data in dataset[...,:-17000]:
+        for data in dataset[:-17000]:
             
-            state = agent.getState(data[..., -20:])
+            state = agent.getState(data[-20:])
             actions = agent.getAction(state)
-            agent.updateValue(actions, data[..., -20:])
+            agent.updateValue(actions, data[-20:])
             agent.calcPerformance()
             new_state = agent.getState(data)
             #TODO : Modify the reward function
@@ -46,6 +46,8 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
             agent.model.save()
             agent.remember(state, actions, perfromance, new_state)
         else:
+            state = agent.getState(data[-20:])
+            
             agent.remember(state, actions, perfromance, new_state)
         #train_loader = torch.utils.data.DataLoader(agent.memory, **dataloader_kwargs)
         train_epoch(epoch, args, model, agent, device, agent.memory, optimizer)
@@ -65,15 +67,15 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
         print(epoch)
     df['iterations'] = n_list
     df['Performance'] = p_list
-    test(args, agent, model, device, dataset[..., -17000:])
+    test(args, agent, model, device, dataset[-17000:])
     df.to_csv(index=False)
     df.to_csv(args.save_file)
 
 def test(args, agent, model, device, dataset, dataloader_kwargs):
     for data in dataset:
-        state = agent.getState(data[..., -20:])
+        state = agent.getState(data[-20:])
         actions = agent.getAction(state)
-        agent.updateValue(actions, data[..., -20:])
+        agent.updateValue(actions, data[-20:])
         agent.calcPerformance()
         new_state = agent.getState(data)
             #TODO : Modify the reward function

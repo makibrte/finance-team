@@ -15,7 +15,7 @@ from train import train, test
 from Model import QNet
 import random 
 class Agent:
-    def __init__(self, cash):
+    def __init__(self, cash, args):
         
         self.cash = torch.tensor(cash).to("cuda:0")
         self.init_balance = torch.tensor(cash).to("cuda:0")
@@ -25,7 +25,7 @@ class Agent:
         self.memory = deque(maxlen=46800)
         self.holdings_average = torch.tensor(0).to("cuda:0")
         self.performance = torch.tensor(0).to("cuda:0")
-        self.model = QNet(155,1000000,3).to("cuda:0")
+        self.model = QNet(155,1000000,3, args.save_file).to("cuda:0")
         self.model.share_memory()
         self.update_tensor = torch.tensor([[1, -1, 0] for _ in range(20)], dtype=torch.float32).to("cuda:0")
 
@@ -70,12 +70,12 @@ class Agent:
             if cash_change <= self.cash:
                 self.holdings = self.holdings + torch.sum((action * self.update_tensor * self.holdings), dim=1, keepdim=True)
                 self.cash = self.cash - cash_change
-        self.balance = torch.sum(self.holdings * prices) + self.cash
+        self.value = torch.sum(self.holdings * prices) + self.cash
         self.stepPerformance()
     def stepPerformance(self):
-        self.performance = self.balance / self.init_balance - self.performance
+        self.performance = self.value / self.init_balance - self.performance
 
-    def finalPerformance(self) -> torch.tensor():
-        return self.balance / self.init_balance
+    def finalPerformance(self):
+        return self.value / self.init_balance
     def remember(self, state, action, reward, next_state, is_done):
         self.memory.append((action, state, reward, next_state))

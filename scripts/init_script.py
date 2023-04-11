@@ -8,7 +8,8 @@ from sklearn.preprocessing import StandardScaler
 def init_tensor(filename: str):
 
     df = pd.read_csv(filename, index_col=0)
-    tensor = Tensor(df).to('cuda:0')
+    tensor = torch.tensor(df.values).to('cuda:0')
+    return tensor
     
 
 def main():
