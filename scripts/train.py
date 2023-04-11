@@ -25,11 +25,11 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
     n_list = []
     p_list = []
     
-
+    dataset = dataset.unbind(0)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     #Backtest loop
     for epoch in range(1, args.epochs + 1):
-        for data in dataset:
+        for data in dataset[...,:-17000]:
             
             state = agent.getState(data[..., -20:])
             actions = agent.getAction(state)
@@ -65,28 +65,35 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
         print(epoch)
     df['iterations'] = n_list
     df['Performance'] = p_list
+    test(args, agent, model, device, dataset[..., -17000:])
     df.to_csv(index=False)
-    df.to_csv('/home/matejam/Documents/IMG/IMG/backtesting/data/model-results/boreAMD.csv')
+    df.to_csv(args.save_file)
 
-def test(args, model, device, dataset, dataloader_kwargs):
-    pass
+def test(args, agent, model, device, dataset, dataloader_kwargs):
+    for data in dataset:
+        state = agent.getState(data[..., -20:])
+        actions = agent.getAction(state)
+        agent.updateValue(actions, data[..., -20:])
+        agent.calcPerformance()
+        new_state = agent.getState(data)
+            #TODO : Modify the reward function
+        reward = agent.stepPerformance()
+        agent.remember(state, actions, agent.performance, new_state)
+    perfromance = agent.finalPerformance()
+    print('Model test performance')
 
 def train_epoch(epoch, args, model, agent, device, data_loader, optimizer):
     
     model.train()
     pid = os.getpid()
-    states, actions, rewards, next_states, dones = zip(*data_loader)
+    states, actions, rewards, next_states,is_dones = zip(*data_loader)
     
-    states = torch.tensor(states, dtype=torch.float, device = torch.device("cuda:0"))#
-    next_states = torch.tensor(next_states, dtype=torch.float,device = torch.device("cuda:0"))#
-        
-    actions = torch.tensor(actions, dtype=torch.long,device = torch.device("cuda:0"))#
-    rewards = torch.tensor(rewards, dtype=torch.float, device = torch.device("cuda:0"))#
+    
     output = model(states)
     target = output.clone()
-    for batch_idx in range(len(dones)):
+    for batch_idx in range(len(states)):
         Q_new = rewards[batch_idx]
-        if not dones[batch_idx]:
+        if not is_dones[batch_idx]:
                 Q_new = rewards[batch_idx] + 0.9 * torch.max(model(next_states[batch_idx]))
         target[batch_idx][torch.argmax(actions[batch_idx]).item()] = Q_new
     optimizer.zero_grad()

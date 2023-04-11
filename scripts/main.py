@@ -1,6 +1,6 @@
 from __future__ import print_function
 import argparse
-
+from init_script import init_tensor
 import os
 import pandas as pd
 import torch
@@ -37,7 +37,7 @@ parser.add_argument('--mps', action='store_true', default=False,
 parser.add_argument('--dry-run', action='store_true', default=False,
                     help='quickly check a single pass')
 parser.add_argument('--save', type = str, help='Name of the model .pth file')
-
+parser.add_argument('--save_file', type = str, help='Name of the file to save the log, it would help if named <first_name>_<test number>')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     else:
         device = torch.device("cpu")
     
-    data = pd.read_csv('/home/matejam/Documents/IMG/IMG/backtesting/data/AMD.csv')
+    data = init_tensor('scaled.csv')
     
     
     kwargs = {'batch_size':args.batch_size,

@@ -60,15 +60,15 @@ class Agent:
     
     def updateValue(self, action, prices) -> None:
         temp_holdings = self.holdings.clone()
-        temp_holdings = temp_holdings + torch.sum((action * self.update_tensor * 100), dim=1, keepdim=True)
+        temp_holdings = temp_holdings + torch.sum((action * self.update_tensor * temp_holdings), dim=1, keepdim=True)
         
         if torch.sum(temp_holdings < 0) > 0:
             #TODO : Change so it has different recorded value to put into the csv file
             pass
         else:
-            cash_change = torch.tensor(torch.sum(prices * torch.sum((action * self.update_tensor * 50), dim=1, keepdim=True)))
-            if cash_change >= self.cash:
-                self.holdings = self.holdings + torch.sum((action * self.update_tensor * 50), dim=1, keepdim=True)
+            cash_change = torch.tensor(torch.sum(prices * torch.sum((action * self.update_tensor * self.holdings), dim=1, keepdim=True)))
+            if cash_change <= self.cash:
+                self.holdings = self.holdings + torch.sum((action * self.update_tensor * self.holdings), dim=1, keepdim=True)
                 self.cash = self.cash - cash_change
         self.balance = torch.sum(self.holdings * prices) + self.cash
         self.stepPerformance()
@@ -77,5 +77,5 @@ class Agent:
 
     def finalPerformance(self) -> torch.tensor():
         return self.balance / self.init_balance
-    def remember(self, state, action, reward, next_state):
+    def remember(self, state, action, reward, next_state, is_done):
         self.memory.append((action, state, reward, next_state))
