@@ -30,8 +30,8 @@ parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                     help='how many batches to wait before logging training status')
-parser.add_argument('--num-processes', type=int, default=2, metavar='N',
-                    help='how many training processes to use (default: 2)')
+parser.add_argument('--num-processes', type=int, default=1, metavar='N',
+                    help='how many training processes to use (default: 1)')
 parser.add_argument('--cuda', action='store_true', default=True,
                     help='enables CUDA training')
 parser.add_argument('--mps', action='store_true', default=False,
@@ -40,6 +40,7 @@ parser.add_argument('--dry-run', action='store_true', default=False,
                     help='quickly check a single pass')
 parser.add_argument('--save', type = str, help='Name of the model .pth file')
 parser.add_argument('--save_file', type = str, help='Name of the file to save the log, it would help if named <first_name>_<test number>')
+parser.add_argument('--device', type=str, default='cuda:0', help='The GPU device for the model to use')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -50,9 +51,9 @@ if __name__ == '__main__':
     else:
         device = torch.device("cpu")
     
-    data = init_tensor('scaled.csv')
+    data = init_tensor('scaled.csv', args.device)
     
-    
+    torch.set_default_device(args.device)
     kwargs = {'batch_size':args.batch_size,
     'shuffle':False}
     if use_cuda:
@@ -64,11 +65,11 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     mp.set_start_method('spawn', force=True)
     
-    model = QNet(15, 128,3, args.save).to(device)
-    agent = Agent(10000, args)
+    model = QNet(155, 1000,3, args.save, args).to(args.device)
+    agent = Agent(1000, args)
     model.share_memory()
     processes = []
-    for rank in range(args.num_processes):
+    for rank in range(2):
         p = mp.Process(target=train, args=(rank, args, model, agent, device,
         data, kwargs))
         p.start()

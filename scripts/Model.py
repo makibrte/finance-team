@@ -14,17 +14,18 @@ from collections import deque
 from train import train, test
 import random
 class QNet(nn.Module):
-    def __init__(self, input, hidden, output, save_file):
+    def __init__(self, input, hidden, output, save_file, args):
         super(QNet, self).__init__()
-        self.linear1 = nn.Linear(input, hidden).to("cuda:0")
-        self.linear2 = nn.Linear(hidden, output).to("cuda:0")
+        self.linear1 = nn.Linear(input, hidden).to(args.device)
+        self.linear2 = nn.Linear(hidden, output).to(args.device)
         self.save_file = save_file
+        self.args = args
 
     
     def forward(self, x):
-        x = F.relu(self.linear1(x)).to("cuda:0")
-        x = F.dropout(x, training=self.training).to("cuda:0")
-        x = self.linear2(x).to("cuda:0")
+        x = F.relu(self.linear1(x)).to(self.args.device)
+        x = F.dropout(x, training=self.training).to(self.args.device)
+        x = self.linear2(x).to(self.args.device)
 
         return x.view(-1,20,3)
     def save(self):

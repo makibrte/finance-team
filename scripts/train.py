@@ -4,7 +4,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import pandas as pd
 import torch.nn as nn
-
+from tqdm import tqdm
 
 def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
     """
@@ -24,21 +24,23 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
     df = pd.DataFrame()
     n_list = []
     p_list = []
-    
-    dataset = dataset.unbind(0)
+    torch.set_default_device(args.device)
+    dataset_temp = dataset.unbind(0)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    print('Works0')
     #Backtest loop
-    for epoch in range(1, args.epochs + 1):
-        for data in dataset[:-17000]:
+    for epoch in tqdm(range(1, 1000)):
+        print('Works')
+        for data in dataset_temp[:-1680]:
             
             state = agent.getState(data[-20:])
             actions = agent.getAction(state)
             agent.updateValue(actions, data[-20:])
-            agent.calcPerformance()
+            agent.stepPerformance()
             new_state = agent.getState(data)
             #TODO : Modify the reward function
             reward = agent.stepPerformance()
-            agent.remember(state, actions, agent.performance, new_state)
+            agent.remember(actions, state, reward, new_state)
         perfromance = agent.finalPerformance()
         
         if(perfromance > record):
@@ -46,7 +48,7 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
             agent.model.save()
             agent.remember(state, actions, perfromance, new_state)
         else:
-            state = agent.getState(data[-20:])
+            state = agent.getState(dataset[-1680][-20:])
             
             agent.remember(state, actions, perfromance, new_state)
         #train_loader = torch.utils.data.DataLoader(agent.memory, **dataloader_kwargs)
@@ -67,13 +69,13 @@ def train(rank, args, model, agent, device, dataset, dataloader_kwargs):
         print(epoch)
     df['iterations'] = n_list
     df['Performance'] = p_list
-    test(args, agent, model, device, dataset[-17000:])
+    test(args, agent, model, device, dataset[-1680:])
     df.to_csv(index=False)
     df.to_csv(args.save_file)
 
 def test(args, agent, model, device, dataset, dataloader_kwargs):
     for data in dataset:
-        state = agent.getState(data[-20:])
+        state = agent.getState(data)
         actions = agent.getAction(state)
         agent.updateValue(actions, data[-20:])
         agent.calcPerformance()
@@ -88,15 +90,15 @@ def train_epoch(epoch, args, model, agent, device, data_loader, optimizer):
     
     model.train()
     pid = os.getpid()
-    states, actions, rewards, next_states,is_dones = zip(*data_loader)
+    actions, states, rewards, next_states = zip(*data_loader)
     
     
-    output = model(states)
+    output = model(states[1])
     target = output.clone()
     for batch_idx in range(len(states)):
-        Q_new = rewards[batch_idx]
-        if not is_dones[batch_idx]:
-                Q_new = rewards[batch_idx] + 0.9 * torch.max(model(next_states[batch_idx]))
+        
+        
+        Q_new = rewards[batch_idx] + 0.9 * torch.max(model(next_states[batch_idx]))
         target[batch_idx][torch.argmax(actions[batch_idx]).item()] = Q_new
     optimizer.zero_grad()
     criterion = nn.MSELoss()
