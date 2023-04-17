@@ -20,6 +20,8 @@ class QNet(nn.Module):
         self.linear2 = nn.Linear(hidden, output).to(args.device)
         self.save_file = save_file
         self.args = args
+        weight_dtype = self.linear1.weight.dtype
+        print("Data type required by the model:", weight_dtype)
 
     
     def forward(self, x):

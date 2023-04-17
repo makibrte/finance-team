@@ -65,11 +65,11 @@ if __name__ == '__main__':
     torch.manual_seed(args.seed)
     mp.set_start_method('spawn', force=True)
     
-    model = QNet(155, 1000,3, args.save, args).to(args.device)
+    model = QNet(152, 1000,60, args.save, args).to(args.device)
     agent = Agent(1000, args)
     model.share_memory()
     processes = []
-    for rank in range(2):
+    for rank in range(1):
         p = mp.Process(target=train, args=(rank, args, model, agent, device,
         data, kwargs))
         p.start()
